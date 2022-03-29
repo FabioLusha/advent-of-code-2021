@@ -15,13 +15,13 @@ end
 def count([]), do: 0
 def count([_]), do: 0
 def count([h|t]) do
-    { _, counter} = List.foldl(
-        t,
-        {h, 0},
-        fn(elem, {prev, count}) when elem > prev -> {elem, count+1};
-          (elem, {_prev, count}) -> {elem, count}
-        end)
-    counter
+  List.foldl(
+    t,
+    {h, 0},
+    fn(elem, {prev, count}) when elem > prev -> {elem, count+1};
+      (elem, {_prev, count}) -> {elem, count}
+    end)
+    |> Kernel.elem(1) # Attention, zero based indexing
 end
 
 def part1(), do: read_input() |> count
