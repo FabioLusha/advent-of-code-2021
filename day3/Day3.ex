@@ -58,24 +58,72 @@ defmodule Day3 do
     |> (fn({fst, snd}) -> bit_to_integer(fst) * bit_to_integer(snd) end).()
   end
 
-  def filter_most_common(readings, most_common)
+  def filter_ml_common(readings, ml_common)
   do
     readings
-    |> Stream.filter( fn([hd|_]) -> hd == most_common end)
+    |> Stream.filter( fn([hd|_]) -> hd == ml_common end)
     |> Stream.map( fn([_|tl]) -> tl end)
+    |> Stream.filter(fn(elem) -> elem != [] end)
     |> Enum.to_list
   end
 
-  def finding_val([_], remaining), do: Enum.reverse(remaining)
-  def finding_val(readings, remaining)
+  def most_or_least?(values, op) do
+    case op do
+      :most -> Kernel.elem(values, 0) |> hd()
+      :least -> Kernel.elem(values, 1) |> hd()
+    end
+  end
+
+  def find_val([], _, remaining), do: Enum.reverse(remaining)
+  def find_val([rem], _, remaining), do: Enum.reverse(Enum.reverse(rem) ++ remaining)
+  def find_val(readings, most_or_least, remaining)
   do
     res = readings 
           |> List.foldl([], fn(elem, acc) -> count_bits(elem, acc) end)
           |> most_least_common()
-          |> Kernel.elem(0)
-          |> hd()
-    filter_most_common(readings, res)
-    |> finding_val([res|remaining]) 
+          |> most_or_least?(most_or_least)
+    filter_ml_common(readings, res)
+    |> find_val(most_or_least, [res|remaining]) 
+  end
+
+  def find()
+  do
+    receive do
+      {pid, {readings, most_or_least}} -> send pid, {self(), {most_or_least, find_val(readings, most_or_least, [])}}
+    end
+  end
+
+  def part2()
+  do
+    inp = read_input()
+    start = :erlang.system_time(:milli_seconds)
+    send spawn(Day3, :find, []), {self(), {inp, :most}}
+    send spawn(Day3, :find, []), {self(), {inp, :least}}
+    receive do
+      {_, {:most, mval}} ->
+        receive do
+          {_, {:least, lval}} ->
+            res = bit_to_integer(mval) * bit_to_integer(lval)
+            IO.puts("Result: #{res}")
+            c_end = :erlang.system_time(:milli_seconds)
+            duration = c_end - start
+            IO.puts("Duraion: #{duration}")
+        end
+    after 1000 ->
+        IO.puts "no_response\n"
+    end
+  end
+
+  def seq_part2() do
+    inp = read_input()
+    start = :erlang.system_time(:milli_seconds)
+    mval = find_val(inp, :most, [])
+    lval = find_val(inp, :least, [])
+    res = bit_to_integer(mval) * bit_to_integer(lval)
+    IO.puts("Result: #{res}")
+    c_end = :erlang.system_time(:milli_seconds)
+    duration = c_end - start
+    IO.puts("Duraion: #{duration}")
   end
 
 end
