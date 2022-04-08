@@ -1,0 +1,27 @@
+# leave these lines alone
+.SUFFIXES: .erl .beam .yrl
+.erl.beam:
+	erlc -W $<
+.yrl.erl:
+	erlc -W $<
+
+ERL = erl -boot start_clean
+
+MODS = matrix day4
+
+Dir1 = '/home/fabiolusha/Desktop/DeskArch-07-21/projects/erlang/advent-of-code-2021/day4'
+
+all: compile
+	${ERL} -pa '/home/fabiolusha/Desktop/DeskArch-07-21/projects/erlang/advent-of-code-2021/day4'
+
+compile: ${MODS:%=%.beam}
+
+## run an application from the makefile
+exec: compile
+	${ERL} -noshell -s day4 start -s init stop
+
+# remove all the code
+clean:
+	rm -rf *.beam erl_crash.dump
+	cd dir1; $(MAKE) clean
+	cd dir2; $(MAKE) clean
