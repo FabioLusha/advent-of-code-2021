@@ -1,6 +1,6 @@
 -module(day1).
--export([part1/0, part2/0]).
 -define(FILE_NAME, "input.txt").
+-compile([export_all, nowarn_export_all]).
 
 
 part1() -> count(read_input()).
