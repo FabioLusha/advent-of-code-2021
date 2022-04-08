@@ -5,10 +5,15 @@
 -compile([export_all, nowarn_export_all]).
 
 
-start() ->
-    io:format("Starto\nStarto\nStarto dayo!\n"),
+part1() ->
     {WinStrike, Matrices} = format_input(read_input()),
     Sup = spawn(day4, create_sup, [WinStrike, Matrices]),
+    Win = rpc(Sup, start),
+    io:format("Winning value ~p\n", [Win]).
+
+part2() ->
+    {WinStrike, Matrices} = format_input(read_input()),
+    Sup = spawn(day4, create_sup2, [WinStrike, Matrices]),
     Win = rpc(Sup, start),
     io:format("Winning value ~p\n", [Win]).
 
@@ -45,11 +50,13 @@ format_input(Bitstring) ->
     {WinStrike, Matrices}.
 
 num_sender(Supervisor, [], _) ->
+    timer:sleep(2000),
     Supervisor ! {self(), finished};
 num_sender(Supervisor, [H | T], Pids) ->
     lists:foreach( fun(Pid) -> Pid ! {self(), H} end, Pids),
     receive
-        {Supervisor, next} -> num_sender(Supervisor, T, Pids)
+        {Supervisor, next} -> 
+            num_sender(Supervisor, T, Pids)
     end.
 
 keep_trace(Supervisor, Mat = [H|_]) ->
@@ -116,10 +123,10 @@ wait_for_winner(Sender, N, N) ->
     io:format("Received ~p replies\n", [N]),
     Sender ! {self(), next},
     wait_for_winner(Sender, 0, N);
-wait_for_winner(Sender, Workers_reply, Nworkers) ->
+wait_for_winner(Sender, Reply_counter, Nworkers) ->
     receive
         {_, {win, {BitMap, Mat}, Value}} -> proclaim_winner(BitMap, Mat, Value);
-        {_, no_win} -> wait_for_winner(Sender, Workers_reply+1, Nworkers)
+        {_, no_win} -> wait_for_winner(Sender, Reply_counter+1, Nworkers)
 
     % we set a timer to wait for the replies
     % if unsure about the time wew can check if we receive all the replies with
@@ -128,11 +135,10 @@ wait_for_winner(Sender, Workers_reply, Nworkers) ->
 %   after 0 ->
 %      flush(),
 %      Sender ! {self(), next},
-%      wait_for_winner(Sender,Workers_reply,Nworkers)
+%      wait_for_winner(Sender,Reply_counter,Nworkers)
     end.
 
 proclaim_winner(BitMap, Mat, Value) ->
-    io:format("Bitmap:\n~p\nMat:\n~p\n",[BitMap, Mat]),
     Sum = sum(
     lists:map(
         fun({_,Val}) -> Val end,
@@ -152,3 +158,34 @@ flush() ->
                 0 -> ok
         end.
 
+
+% ----------------------------- PART2 ----------------------------------
+
+wait_for_winner2(_, _, 0, Winners) ->
+    {LastBitMap, LastMat, LastVal} = hd(Winners),
+    proclaim_winner(LastBitMap,LastMat,LastVal);
+wait_for_winner2(Sender, N, N, Winners) ->
+    Sender ! {self(), next},
+    wait_for_winner2(Sender, 0, N, Winners);
+wait_for_winner2(Sender, Reply_counter, Nworkers, Winners) ->
+    receive
+        {_, {win, {BitMap, Mat}, Value}} ->
+            % timer:sleep(2000),
+            % we do not count anymore the winning worker
+            % we do not add the reply to the replay counter since we
+            % lowered the number of workers for this turn but the replies
+            % were send by the original number of workers
+            wait_for_winner2(Sender, Reply_counter, Nworkers-1, [{BitMap, Mat, Value}|Winners]);
+        {_, no_win} ->
+            wait_for_winner2(Sender, Reply_counter+1, Nworkers, Winners);
+        {Sender, finished} ->
+            {LastBitMap, LastMat, LastVal} = hd(Winners),
+            proclaim_winner(LastBitMap,LastMat,LastVal)
+    end.
+
+create_sup2(WinStrike, Matrices) ->
+    receive {Pid, start} ->
+        Workers = lists:map(fun(X) -> spawn(day4, keep_trace, [self(), X]) end, Matrices),
+        Sender = spawn(day4, num_sender, [self(), WinStrike, Workers]),
+        Pid ! {self(), wait_for_winner2(Sender, 0, length(Workers), [])}
+    end.
