@@ -58,13 +58,15 @@ defmodule Day5 do
   end
 
   def draw_line(board, {x,y} = dest, _, dest) do
-    :linalg.insert(board, y, x, :linalg.get(board, y, x) + 1)
+    {get, set_f} = :linalg.get_and_set(board, y, x)
+    set_f.(get+1)
   end
   def draw_line(board, {x,y}, {x_dir, y_dir} = dir, dest) do
       # we invert the position of x and y because in the matrix the
       # first arg represents the vertical axis and the second arg
       # represents the horizontal axis
-      new_board = :linalg.insert(board, y, x, :linalg.get(board, y, x) + 1)
+      {get, set_f} = :linalg.get_and_set(board, y, x)
+      new_board = set_f.(get+1)
       draw_line(new_board, {x + x_dir, y + y_dir}, dir, dest)
   end
 
@@ -73,6 +75,27 @@ defmodule Day5 do
       read_input()
       |> extract_points()
       |> only_hz_vt()
+
+    res =
+      List.foldl(
+      points,
+      :linalg.zeros(1000,1000),
+      fn {p1,p2}, acc ->
+        draw_line(acc, p1, p2)
+      end)
+
+    res
+    |> List.flatten()
+    |> List.foldl(
+      0,
+      fn elem, acc -> if elem >= 2 do acc+1 else acc end end)
+
+  end
+
+  def part2() do
+    points =
+      read_input()
+      |> extract_points()
 
     res =
       List.foldl(

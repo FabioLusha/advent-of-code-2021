@@ -18,7 +18,9 @@
     add_vec/2,
     add_mat/2,
     zip_mat/2,
-    unzip_mat/1
+    unzip_mat/1,
+    get_and_set/2,
+    get_and_set/3 
 ]).
 
 fill(N, Dim) ->
@@ -77,11 +79,12 @@ mat_contains(Mat, Elem) ->
     lists:reverse(Posts).
 
 insert(Vec,Pos, Elem) ->   
-    [(fun
-         ({_Col,P}) when _Col /= Pos -> P;
-         (_) -> Elem
-     end)({Col, X})
-    || {Col, X} <- lists:zip(lists:seq(1,length(Vec)), Vec)].
+    insert(Vec, Pos, Elem, 1, []).
+
+insert([_|T], Pos, Elem, Pos, Acc) ->
+    lists:reverse([Elem|Acc]) ++ T;
+insert([H|T], Pos, Elem, Ac_Pos, Acc) ->
+    insert(T, Pos, Elem, Ac_Pos, [H|Acc]).
 
 insert(Mat, RowInd, ColInd, Elem) ->
     [(fun
@@ -112,3 +115,20 @@ add_mat(M1, M2) ->
             lists:map(fun({V1,V2}) -> add_vec(V1,V2) end, lists:zip(M1,M2));
         false -> throw(["Case not handled"])
     end.
+get_and_set(Vec, Index) ->
+    get_and_set(Vec, Index, 1, []).
+
+get_and_set([], _, _, Acc) -> lists:reverse(Acc);
+get_and_set([H|T], Index, Index, Acc) ->
+    {H, fun(In) -> lists:reverse([In|Acc]) ++ T end};
+get_and_set([H|T], Index, Pos, Acc) ->
+    get_and_set(T, Index, Pos+1, [H|Acc]).
+
+get_and_set(Mat, RowI, ColI) ->
+    get_and_set(Mat, RowI, ColI, 1, []).
+
+get_and_set([H|T], RowI, ColI, RowI, Acc) ->
+    {Get, SetF} = get_and_set(H, ColI),
+    {Get, fun(Set) -> lists:reverse([SetF(Set)|Acc]) ++ T end};
+get_and_set([H|T], RowI, ColI, ActualRow, Acc) ->
+    get_and_set(T, RowI, ColI, ActualRow+1, [H|Acc]).
